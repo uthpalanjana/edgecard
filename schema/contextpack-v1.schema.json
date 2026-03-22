@@ -1,0 +1,325 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://contextpack.io/schema/contextpack-v1.schema.json",
+  "title": "ContextPack Card v1",
+  "type": "object",
+  "required": [
+    "contextpack_version",
+    "card_id",
+    "card_type",
+    "generated_at",
+    "valid_until",
+    "authored_by",
+    "schema_version",
+    "identity",
+    "state",
+    "knowledge",
+    "history",
+    "instructions"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contextpack_version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "card_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "card_type": {
+      "type": "string",
+      "enum": ["device", "system", "zone", "process", "asset", "agent"]
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "valid_until": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "authored_by": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "identity": {
+      "$ref": "#/definitions/IdentityBlock"
+    },
+    "state": {
+      "$ref": "#/definitions/StateBlock"
+    },
+    "knowledge": {
+      "$ref": "#/definitions/KnowledgeBlock"
+    },
+    "history": {
+      "$ref": "#/definitions/HistoryBlock"
+    },
+    "instructions": {
+      "$ref": "#/definitions/InstructionsBlock"
+    },
+    "provenance": {
+      "$ref": "#/definitions/ProvenanceBlock"
+    }
+  },
+  "definitions": {
+    "IdentityBlock": {
+      "type": "object",
+      "required": ["subject", "entity_type", "location"],
+      "additionalProperties": false,
+      "properties": {
+        "subject": { "type": "string" },
+        "entity_type": { "type": "string" },
+        "location": { "type": "string" },
+        "project_ref": { "type": "string" },
+        "owner": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "dependencies": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "Reading": {
+      "type": "object",
+      "required": ["value", "quality", "timestamp"],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "oneOf": [
+            { "type": "number" },
+            { "type": "string" },
+            { "type": "boolean" }
+          ]
+        },
+        "unit": { "type": "string" },
+        "quality": {
+          "type": "string",
+          "enum": ["measured", "estimated", "stale", "simulated"]
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "trend": {
+          "type": "string",
+          "enum": ["rising", "falling", "stable", "unknown"]
+        },
+        "rate_of_change": { "type": "number" }
+      }
+    },
+    "StateBlock": {
+      "type": "object",
+      "required": ["data_age_seconds", "readings"],
+      "additionalProperties": false,
+      "properties": {
+        "data_age_seconds": { "type": "integer" },
+        "readings": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/Reading" }
+        },
+        "derived_state": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "Threshold": {
+      "type": "object",
+      "required": ["field", "operator", "value", "severity", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "field": { "type": "string" },
+        "operator": {
+          "type": "string",
+          "enum": ["gt", "lt", "gte", "lte", "eq", "neq", "between"]
+        },
+        "value": {
+          "oneOf": [
+            { "type": "number" },
+            {
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "critical"]
+        },
+        "label": { "type": "string" }
+      }
+    },
+    "DomainFact": {
+      "type": "object",
+      "required": ["key", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "type": "string" },
+        "value": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "Relationship": {
+      "type": "object",
+      "required": ["type", "target_card_id", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["depends_on", "monitors", "controls", "feeds"]
+        },
+        "target_card_id": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "KnowledgeBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "thresholds": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/Threshold" }
+        },
+        "domain_facts": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DomainFact" }
+        },
+        "relationships": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Relationship" }
+        }
+      }
+    },
+    "HistoryEvent": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "event_type",
+        "timestamp",
+        "severity",
+        "description",
+        "resolved",
+        "card_version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "event_id": { "type": "string" },
+        "event_type": {
+          "type": "string",
+          "enum": [
+            "fault",
+            "recovery",
+            "maintenance",
+            "threshold_breach",
+            "inspection",
+            "configuration_change",
+            "anomaly"
+          ]
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "critical"]
+        },
+        "description": { "type": "string" },
+        "resolved": { "type": "boolean" },
+        "resolved_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "resolution_note": { "type": "string" },
+        "card_version": { "type": "string" }
+      }
+    },
+    "HistoryBlock": {
+      "type": "object",
+      "required": ["token_budget_pct", "events"],
+      "additionalProperties": false,
+      "properties": {
+        "token_budget_pct": { "type": "number" },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/HistoryEvent" }
+        }
+      }
+    },
+    "InstructionsBlock": {
+      "type": "object",
+      "required": [
+        "generated_from_rules",
+        "token_budget_pct",
+        "role_directive",
+        "data_freshness_directive",
+        "reasoning_directives",
+        "output_format",
+        "escalation_contacts"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "generated_from_rules": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "token_budget_pct": { "type": "number" },
+        "role_directive": { "type": "string" },
+        "data_freshness_directive": { "type": "string" },
+        "reasoning_directives": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "output_format": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "escalation_contacts": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "ProvenanceBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "card_writer_version": { "type": "string" },
+        "sdk_language": { "type": "string" },
+        "adapter_versions": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "signing": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "algorithm": { "type": "string" },
+            "public_key_id": { "type": "string" },
+            "signature": { "type": "string" }
+          }
+        },
+        "encryption": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "algorithm": { "type": "string" },
+            "key_id": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}
