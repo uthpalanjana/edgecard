@@ -1,8 +1,10 @@
 # ContextPack
 
-Pre-assembled, model-ready context documents for local LLM inference.
+Pre-assembled, model-ready context documents for systems with static boundaries and predefined parameters.
 
-Local LLMs have no standard way to receive device-specific, offline-capable context. RAG requires connectivity. MCP requires a live server. Fine-tuning requires training data. **ContextPack requires none of these** — it pre-assembles everything a model needs into a single structured document (a "card") that is read once at inference time.
+Most LLM integration patterns are designed for open-ended retrieval: RAG pulls from a corpus, MCP calls live servers, fine-tuning bakes knowledge into weights. **ContextPack is for systems where the domain is already known** — the entities, their relationships, their thresholds, and their history. Rather than retrieving context at query time, ContextPack pre-assembles it into a single structured document (a "card") that is read once at inference time.
+
+A card is entity-scoped. Each card describes one entity — a device, a unit, a system — and carries everything the model needs to reason about it: what it is, what it depends on, what its live state is, what the rules are, and what has happened to it recently. History is a first-class block, not a lookup. The model arrives at every query already knowing the entity's past.
 
 ```
 ┌──────────────────────┐       ┌─────────────────────┐       ┌──────────────────┐
@@ -12,6 +14,23 @@ Local LLMs have no standard way to receive device-specific, offline-capable cont
 │    REST, files)      │       │    every N seconds   │       │   at query time  │
 └──────────────────────┘       └─────────────────────┘       └──────────────────┘
 ```
+
+---
+
+## Example: device support chatbot
+
+Consider a support chatbot for a fleet of industrial routers. When a field technician opens a ticket for unit `router-site-47`, the chatbot needs to reason about that specific device — not routers in general.
+
+Without ContextPack, the chatbot would need to query a CMDB for the device config, a monitoring API for current state, a ticketing system for recent faults, and a knowledge base for firmware rules — all at query time, all requiring live connectivity, all stitched together in a prompt by hand.
+
+With ContextPack, a card for `router-site-47` is written every 60 seconds and stored on disk. When the technician asks *"why is the WAN link flapping?"*, the chatbot loads the card and the model already knows:
+
+- **What the device is and what it depends on** (identity block): site location, upstream ISP, dependent devices on the LAN, known interference sources at that site
+- **What the current state is** (state block): WAN signal strength, link uptime counter, error rate trend over the last 5 minutes, derived flag `wan_instability = true`
+- **What the thresholds and rules are** (knowledge + instructions blocks): signal below -85 dBm is a hard fault; this device model has a known firmware bug in versions < 3.4.1 that causes false flaps under high CPU load
+- **What has happened recently** (history block): two previous WAN flap events this week, a firmware update three days ago that introduced the current version, a maintenance window two weeks ago where the antenna was reseated
+
+The model's answer is grounded in the actual history and configuration of that device — not a generic troubleshooting script. No retrieval. No live API calls. No prompt assembly. The card is a file.
 
 ---
 
