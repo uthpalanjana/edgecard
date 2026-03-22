@@ -168,6 +168,11 @@ class ConditionParser:
         if kind == "string":
             return val[1:-1]  # strip quotes
         if kind == "ident":
+            # Handle Python boolean literals
+            if val == "True":
+                return True
+            if val == "False":
+                return False
             # Try readings first, then derived_state
             if val in state.readings:
                 return state.readings[val].value
@@ -209,7 +214,11 @@ class ConditionParser:
                 raise InvalidConditionError(f"Unknown operator: {op_tok['value']}")
             # Type coerce: if left is a string representation of a number, try numeric
             left_c, right_c = self._coerce(left, right)
-            return op_fn(left_c, right_c), pos
+            try:
+                return op_fn(left_c, right_c), pos
+            except TypeError:
+                # Incompatible types (e.g. str vs float for > operator)
+                return False, pos
 
         return left, pos
 
